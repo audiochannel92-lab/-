@@ -23,20 +23,32 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Prepare Project and Capacitate
+      - name: Prepare Web Assets & Capacitor Project
         run: |
+          # Создаем веб-директорию и копируем index.html
           mkdir -p www
           cp index.html www/
+          
+          # Инициализируем Node-проект и устанавливаем Capacitor
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          
+          # Инициализация и создание Android-платформы
           npx cap init "Daily HUD" "com.dailyhud.app" --web-dir www
           npx cap add android
           npx cap sync
 
-      - name: Build APK via Gradle
+      - name: Fix Android Permissions & Build
         run: |
           cd android
           chmod +x gradlew
+          
+          # Автоматическое принятие лицензий Android SDK
+          mkdir -p "$ANDROID_HOME/licenses"
+          echo "245451543cd1f24791371d3a655245d074f214a1" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          
+          # Запуск сборки без демона
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
