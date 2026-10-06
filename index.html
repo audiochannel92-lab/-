@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Распорядок дня — HUD</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#070504">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily HUD">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#070504;
+  --panel:#120b07;
+  --panel2:#1a0e08;
+  --orange:#ff7a00;
+  --orange2:#ffb15c;
+  --text:#fff3e8;
+  --muted:#bda99a;
+  --line:#5b2c0b;
+  --green:#73ff9b;
+  --danger:#ff4d2e;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; background:
+  radial-gradient(circle at 50% 0%, #351705 0, transparent 38%),
+  linear-gradient(145deg,#050403,#100803 55%,#050403);
+  color:var(--text); font-family:Inter,Segoe UI,Arial,sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body:before{
+  content:""; position:fixed; inset:0; pointer-events:none; opacity:.09;
+  background-image:linear-gradient(rgba(255,122,0,.35) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,122,0,.35) 1px,transparent 1px);
+  background-size:42px 42px;
+}
+.wrap{max-width:1100px;margin:auto;padding:28px 18px 50px}
+header{
+  border:1px solid var(--line); background:linear-gradient(180deg,#1b0d06,#0d0805);
+  box-shadow:0 0 35px rgba(255,100,0,.12), inset 0 0 30px rgba(255,100,0,.04);
+  padding:22px; border-radius:18px; position:relative; overflow:hidden;
+}
+header:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--orange),transparent)}
+.kicker{font-size:12px;letter-spacing:4px;color:var(--orange2);font-weight:800}
+h1{margin:7px 0 4px;font-size:clamp(28px,5vw,48px);letter-spacing:1px}
+.subtitle{color:var(--muted)}
+.clock{font-size:clamp(36px,8vw,72px);font-weight:800;letter-spacing:3px;color:var(--orange)}
+.topgrid{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end}
+.progressbox{margin-top:18px}
+.progressbar{height:10px;background:#261208;border:1px solid #4a240b;border-radius:20px;overflow:hidden}
+.progressfill{height:100%;width:0;background:linear-gradient(90deg,#ff4e00,#ffb15c);box-shadow:0 0 15px #ff6500;transition:width .4s}
+.stats{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-top:7px}
+.current{
+  margin:20px 0; padding:22px; border:1px solid #7b3608; border-radius:16px;
+  background:linear-gradient(100deg,#241006,#130a06);
+  position:relative;box-shadow:0 0 28px rgba(255,100,0,.15),inset 0 0 35px rgba(255,100,0,.04);
+}
+.current:after{content:"LIVE";position:absolute;right:18px;top:14px;color:#ff7a00;font-size:10px;letter-spacing:3px;animation:blink 1s infinite}
+.current small{color:var(--orange2);letter-spacing:2px;font-weight:800}
+.current h2{margin:5px 0 10px;font-size:28px;color:#fff}
+.current .remain{color:var(--muted);font-size:16px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+button{
+  border:1px solid #8b3b08;background:#1c0d06;color:#fff;padding:10px 14px;
+  border-radius:10px;cursor:pointer;font-weight:700;transition:.2s;
+}
+button:hover{background:#321608;transform:translateY(-1px)}
+button.primary{background:var(--orange);color:#180b03;border-color:#ff9a3d}
+button.danger{border-color:#8e2818;color:#ffad9c}
+.schedule{display:grid;gap:11px}
+.item{
+  display:grid;grid-template-columns:135px 1fr auto;gap:15px;align-items:center;
+  border:1px solid #3d1e0a;background:rgba(17,9,5,.92);border-radius:14px;
+  padding:14px 16px;position:relative;overflow:hidden;transition:.25s;
+}
+.item:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#572508}
+.item.active{border-color:#b84c08;box-shadow:0 0 22px rgba(255,100,0,.14);background:#1c0d06}
+.item.active:before{background:var(--orange);box-shadow:0 0 12px var(--orange)}
+.item.done{opacity:.55}
+.time{color:var(--orange2);font-weight:800;font-variant-numeric:tabular-nums}
+.title{font-size:16px;font-weight:700}
+.note{color:var(--muted);font-size:13px;margin-top:4px}
+.check{
+  width:28px;height:28px;border-radius:50%;padding:0;border:1px solid #75400e;
+  background:#100905;color:transparent;font-size:16px;display:grid;place-items:center;
+}
+.item.done .check{background:#14341e;border-color:#45a965;color:var(--green)}
+.item.done .title{text-decoration:line-through}
+.subtasks{margin-top:9px;display:flex;gap:8px;flex-wrap:wrap}
+.tag{font-size:11px;border:1px solid #5c2a0a;color:#d9b59d;padding:4px 7px;border-radius:20px}
+footer{margin-top:22px;color:#806e61;font-size:12px;text-align:center}
+@media(max-width:650px){
+ .topgrid{grid-template-columns:1fr}.item{grid-template-columns:90px 1fr auto;gap:9px;padding:12px}
+ .time{font-size:13px}.title{font-size:14px}
+}
+
+.quote-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+.quote{min-height:145px;padding:22px;border:1px solid #7b3608;border-radius:16px;background:linear-gradient(145deg,#271106,#0c0704);position:relative;overflow:hidden;display:flex;align-items:center;box-shadow:0 0 25px rgba(255,90,0,.12);animation:floatHud 4s ease-in-out infinite}
+.quote:nth-child(2){animation-delay:-1.3s}.quote:nth-child(3){animation-delay:-2.6s}
+.quote:before{content:"";position:absolute;width:180%;height:180%;left:-40%;top:-40%;background:conic-gradient(from 0deg,transparent,#ff7a00,transparent 22%);animation:spin 7s linear infinite;opacity:.12}
+.quote span{position:relative;z-index:1;font-size:clamp(16px,1.8vw,22px);line-height:1.35;font-weight:800}
+.quote .num{position:absolute;top:10px;right:13px;font-size:10px;letter-spacing:3px;color:#a95d27;z-index:2}
+@keyframes floatHud{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}} @keyframes spin{to{transform:rotate(360deg)}}
+.bigremain{margin-top:12px;font-size:clamp(48px,9vw,104px);line-height:1;font-weight:900;letter-spacing:5px;color:#ff8a18;font-variant-numeric:tabular-nums}
+.hudline{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;color:#9c7762;font-size:11px;letter-spacing:2px}.hudline b{color:#ffad60}
+@keyframes blink{50%{opacity:.2}}
+.radar{width:50px;height:50px;border:1px solid #75400e;border-radius:50%;position:relative;overflow:hidden}.radar:before{content:"";position:absolute;inset:5px;border:1px solid #4c270e;border-radius:50%}.radar:after{content:"";position:absolute;width:50%;height:1px;left:50%;top:50%;background:#ff7a00;transform-origin:left;animation:radar 2s linear infinite}@keyframes radar{to{transform:rotate(360deg)}}
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(to bottom,rgba(255,130,30,.025) 0 1px,transparent 1px 5px)}
+@media(max-width:800px){.quote-grid{grid-template-columns:1fr}.quote{min-height:110px}}
+</style>
+</head>
+<body>
+<div class="scanlines"></div><div class="wrap">
+<header>
+  <div class="kicker">DAILY HUD</div>
+  <div class="topgrid">
+    <div>
+      <div class="subtitle" style="margin-top:5px;">Пошаговый дневной план с отметкой выполненных дел</div>
+    </div>
+    <div id="clock" class="clock">00:00:00</div>
+  </div>
+  <div class="progressbox">
+    <div class="progressbar"><div id="progress" class="progressfill"></div></div>
+    <div class="stats"><span id="progressText">0% выполнено</span><span id="date"></span></div>
+  </div>
+</header>
+<section class="quote-grid">
+<div class="quote"><div class="num">01 / DISCIPLINE</div><span>Режим как в армии. Сон, питание и физические нагрузки.</span></div>
+<div class="quote"><div class="num">02 / BREATH</div><span>Медленный выдох длиннее вдоха активирует парасимпатическую нервную систему.</span></div>
+<div class="quote"><div class="num">03 / WILL</div><span>То, куда ты направляешь свою волю, становится твоей реальностью.</span></div>
+</section>
+
+<!-- Объединенный блок "Твой режим" и "Сейчас" -->
+<section class="current">
+  <small>ТВОЙ РЕЖИМ // СЕЙЧАС</small>
+  <h2 id="currentTitle">Определяем текущий блок…</h2>
+  <div class="bigremain" id="bigremain">00:00:00</div>
+  <div class="remain" id="remain">До конца текущего блока</div>
+  <div class="hudline">
+    <span>STATUS: <b id="statusHud">ACTIVE</b></span>
+    <span>BLOCK: <b id="blockHud">--</b></span>
+    <span>RADAR: <b>ONLINE</b></span>
+    <div class="radar"></div>
+  </div>
+</section>
+
+<div class="controls">
+  <button class="primary" onclick="testAlarm()">🔔 Тест сигнала</button>
+  <button class="danger" onclick="resetAll()">↻ Сбросить отметки</button>
+</div>
+
+<main id="schedule" class="schedule"></main>
+<footer>Подсказка: отметки сохраняются автоматически в браузере. Приложение работает локально и оффлайн.</footer>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+const schedule = [
+ {start:"07:00",end:"08:00",title:"Подъем, личная гигиена",note:"Подготовка к утренним процедурам"},
+ {start:"08:00",end:"09:00",title:"Завтрак",note:"Спокойный прием пищи"},
+ {start:"09:00",end:"12:00",title:"Утренний рабочий блок",note:"Тренировка + аудио-канал и «Зэ Компрессор»",tags:["тренировка — 1 ч","перекус — 10:30","аудио-канал + «Зэ Компрессор» — 2 ч"]},
+ {start:"12:00",end:"13:00",title:"Свободное время / отдых",note:"Гимнастика, «Колючки»"},
+ {start:"13:00",end:"14:00",title:"Обед",note:"Прием пищи и восстановление"},
+ {start:"14:00",end:"16:00",title:"Дополнительные процедуры",note:"Оздоровительные занятия по желанию, прогулки или экскурсии"},
+ {start:"16:00",end:"17:00",title:"Чай, перекус, отдых",note:"Небольшая пауза перед вечерним блоком"},
+ {start:"17:00",end:"19:00",title:"Тренировки",note:"Вечерний тренировочный блок"},
+ {start:"19:00",end:"20:00",title:"Ужин",note:"Прием пищи"},
+ {start:"20:00",end:"21:00",title:"Вечерние мероприятия / свободное время",note:"Чтение, просмотр фильмов"},
+ {start:"21:00",end:"22:00",title:"Подготовка ко сну",note:"Личная гигиена"},
+ {start:"22:00",end:"22:01",title:"Отбой",note:"Завершение дня"}
+];
+
+const key="daily_hud_done_v1";
+let done=JSON.parse(localStorage.getItem(key)||"{}");
+let lastBlock=-1;
+let warnedIndex=-1;
+let audioCtx=null;
+
+function playSound(type) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'check') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(1400, now + 0.08);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else if (type === 'reset') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.linearRampToValueAtTime(200, now + 0.15);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (type === 'alarm') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(660, now + 0.13);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } else {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+  } catch(e) {}
+}
+
+function mins(t){let [h,m]=t.split(":").map(Number);return h*60+m}
+function render(){
+ const root=document.getElementById("schedule");
+ root.innerHTML="";
+ schedule.forEach((s,i)=>{
+   const el=document.createElement("article");
+   el.className="item "+(done[i]?"done":"");
+   el.id="item-"+i;
+   el.innerHTML=`<div class="time">${s.start} — ${s.end}</div>
+     <div><div class="title">${s.title}</div><div class="note">${s.note}</div>
+     ${s.tags?'<div class="subtasks">'+s.tags.map(x=>`<span class="tag">${x}</span>`).join("")+'</div>':""}</div>
+     <button class="check" aria-label="Отметить" onclick="toggle(${i})">${done[i]?"✓":""}</button>`;
+   root.appendChild(el);
+ });
+ update();
+}
+function toggle(i){
+  playSound('check');
+  done[i]=!done[i];
+  localStorage.setItem(key,JSON.stringify(done));
+  render();
+}
+function resetAll(){
+  playSound('reset');
+  if(confirm("Сбросить все отметки?")){
+    done={};
+    localStorage.removeItem(key);
+    render();
+  }
+}
+function update(){
+ const now=new Date(), cur=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+ checkTenMinuteWarning(cur);
+ document.getElementById("clock").textContent=now.toLocaleTimeString("ru-RU");
+ document.getElementById("date").textContent=now.toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"});
+ let idx=schedule.findIndex(s=>cur>=mins(s.start)&&cur<mins(s.end));
+ if(idx<0){idx=cur<mins("07:00")?-1:schedule.length-1}
+ document.querySelectorAll(".item").forEach(x=>x.classList.remove("active"));
+ if(idx>=0)document.getElementById("item-"+idx)?.classList.add("active");
+ if(idx>=0){
+   const s=schedule[idx], end=mins(s.end), nowMin=cur;
+   let sec=Math.max(0,Math.round((end-nowMin)*60));
+   let h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),ss=sec%60;
+   document.getElementById("currentTitle").textContent=s.title;
+   const remainStr=`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
+   document.getElementById("bigremain").textContent=remainStr;
+   document.getElementById("remain").textContent="До конца текущего блока";
+   document.getElementById("statusHud").textContent="ACTIVE";
+   document.getElementById("blockHud").textContent=`${String(idx+1).padStart(2,"0")} / ${schedule.length}`;
+   if(idx!==lastBlock && lastBlock!==-1 && idx>=0) notify(s);
+   lastBlock=idx;
+ }else{
+   document.getElementById("currentTitle").textContent=cur<mins("07:00")?"До начала режима":"Режим на сегодня завершен";
+   document.getElementById("remain").textContent=cur<mins("07:00")?"Старт в 07:00":"Время отдыха";
+ }
+ const count=Object.values(done).filter(Boolean).length;
+ const pct=Math.round(count/schedule.length*100);
+ document.getElementById("progress").style.width=pct+"%";
+ document.getElementById("progressText").textContent=`${pct}% выполнено · ${count}/${schedule.length}`;
+}
+function notify(s){
+ playSound('alarm');
+ if("Notification" in window && Notification.permission==="granted") new Notification("Следующий блок через 10 минут", {body:`Подготовься: ${s.start} — ${s.title}`});
+}
+function checkTenMinuteWarning(cur){
+ const i=schedule.findIndex(s=>mins(s.start)-cur>0 && mins(s.start)-cur<=10.01);
+ if(i>=0 && i!==warnedIndex){warnedIndex=i;notify(schedule[i]);}
+ if(i<0) warnedIndex=-1;
+}
+function testAlarm(){
+  playSound('alarm');
+}
+
+if("Notification" in window && Notification.permission==="default"){
+ document.addEventListener("click",()=>Notification.requestPermission(),{once:true});
+}
+render();setInterval(update,1000);
+</script>
+</body>
+</html>
